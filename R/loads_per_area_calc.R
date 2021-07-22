@@ -57,17 +57,12 @@ df_load_month <-
 
 # Check if total_n_days_in_month variables are the same
 all(df_load_month$total_n_days_in_month.x == df_load_month$total_n_days_in_month.y)
-# Not all of them are, which ones are not equal?
-which(df_load_month$total_n_days_in_month.x != df_load_month$total_n_days_in_month.y)
-# Row 28, let's take a look at it:
-df_load_month[28, c("Wetland", "Date", "total_n_days_in_month.x", "total_n_days_in_month.y")]
-# Hmmm, June has 30 days.
-# >>> We need to check if 31 days was used in the calculations for the monthly THg loads
+# Yes, they are
 
-# For now, we will use total_n_days_in_month.y since that has the correct # of days
+# We will use total_n_days_in_month.x since they are both the same
 df_load_month_clean <- df_load_month %>%
-  select(-total_n_days_in_month.x) %>%
-  rename(total_n_days = total_n_days_in_month.y)
+  select(-total_n_days_in_month.y) %>%
+  rename(total_n_days = total_n_days_in_month.x)
 
 
 # 4. Calculate Load per area ----------------------------------------------
@@ -84,8 +79,6 @@ df_load_month_clean2 <- df_load_month_clean %>%
   rename_with(~str_remove(.x, "_g_per_month$"), ends_with("per_month"))
 
 # Create a data frame of wetland acreages
-# The Final Report refers to the Westervelt Cosumnes River Tidal Wetland as "Westervelt"
-# >>> We may want to rename "Cosumnes" -> "Westervelt" in the data files to be consistent
 df_wetland_area <- tibble(
   Wetland = sort(unique(df_load_event_clean2$Wetland)),
   area_acres = c(61.9, 22.5, 24.8, 31.3)
@@ -107,14 +100,15 @@ l_load_per_area <-
       mutate(across(where(is.numeric), ~.x * 10^9)) %>%
       # Add a variable for load units
       mutate(Units = "ng/day/m2")
-  )
+  ) %>%
+  # Don't include the last 3 sampling events for Cosumnes, since the wetland flooded
+    # and was out of bank
+  map_at(vars("event"), ~filter(.x, !(Wetland == "Cosumnes" & tide_date > "2019-01-01"))) %>%
+  map_at(vars("monthly"), ~filter(.x, !(Wetland == "Cosumnes" & Date > "2019-01-01")))
 
 # Export calculated loads
 iwalk(
   l_load_per_area,
   ~write_excel_csv(.x, file = file.path("output", paste0("loads_per_area_", .y, ".csv")))
 )
-
-# I left in the last 3 sampling events for Cosumnes for now
-# >>> We may decide to remove them
 
