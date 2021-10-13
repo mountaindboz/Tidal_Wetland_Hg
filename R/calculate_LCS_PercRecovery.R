@@ -26,7 +26,6 @@ qa_samp_mlml <-
 lcs_mehg_summ <- qa_samp_mlml %>%
   filter(SampleTypeCode == "LCS") %>%
   mutate(perc_recovery = Result/ExpectedValue * 100) %>%
-  group_by(SampleTypeCode) %>%
   summarize(
     N = n(),
     min_per_r = min(perc_recovery),
